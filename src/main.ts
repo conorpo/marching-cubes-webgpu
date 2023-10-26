@@ -16,6 +16,13 @@ async function init() {
     device,
     format: presentationFormat,
   });
+
+  if(!context) {
+    console.error('need a browser that supports WebGPU');
+    return;
+  } else{
+    console.log('Context created successfully');
+  }
 }
 
 init();
