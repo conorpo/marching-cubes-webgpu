@@ -5,15 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
-    "typescript": "^5.0.2",
     "vite": "^4.4.5"
   },
   "dependencies": {
-    "@webgpu/types": "^0.1.38",
     "vite-plugin-glsl": "^1.1.2"
   }
 }
