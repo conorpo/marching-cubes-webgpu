@@ -1,6 +1,6 @@
 import { setupNoiseStage } from './stages/noise.js';
 import { setupDebugNoiseStage } from './stages/debugNoise.js';
-// import setupMarchingCubesStage from './stages/marchingCubes.js';
+import { setupMarchingCubesStage } from './stages/marchingCubes.js';
 
 const config = {
   cellCountX: 25 * 4, // must be a multiple of 4
@@ -50,7 +50,7 @@ async function init() {
 
   const noiseStage = setupNoiseStage(device, config, noiseTexture);
   const debugNoiseStage = setupDebugNoiseStage(device, config, noiseTexture, presentationFormat);
-  // const marchingCubesStage = setupMarchingCubesStage(device, config, noiseTexture);
+  const marchingCubesStage = setupMarchingCubesStage(device, config, noiseTexture);
 
   const renderPassDescriptor =  {
     label: 'fluid sim visualization render pass',
