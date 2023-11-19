@@ -1,61 +1,75 @@
 @group(0) @binding(0) var noise_texture: texture_storage_3d<r32float, write>;
 
+// struct Settings {
+//     scale: f32;
+// }
 
-//Linear interpolation function
-fn lerp(t: f32, a: f32, b: f32)-> f32{
-    return a + t * (b - a);
-}
+// @group(0) @binding(1) var settings: Settings;
 
 //fade function smoothens transition between grid points
 fn fade(t: f32)-> f32{
     return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-fn grad3(hash: i32, x: f32, y: f32, z: f32) -> vec3<f32> {
-    var h: i32 = hash & 15; // CONVERT LO 4 BITS OF HASH CODE
-    var u: f32 = select( x, y, h < 8);
-    var v: f32 = select( y, select(x, z, h == 12 || h == 14), h < 4);
+fn grad(hash: u32, coord: vec3f) -> f32 {
+    var h: u32 = hash & 15u; // CONVERT LO 4 BITS OF HASH CODE
+    var u: f32 = select(coord.y, coord.x, h < 8u);
+    var v: f32 = select(select(coord.z, coord.x, h == 12u || h == 14u), coord.y , h < 4u);
     
-    return vec3<f32>(
-        select(u, -u, (h & 1) == 0) + select(v, -v, (h & 2) == 0),
-        select(v, -v, (h & 2) == 0) + select(u, -u, (h & 1) == 0),
-        0.0
-    );
+    return select(u, -u, (h & 1u) != 0) + select(-v, v, (h & 2u) != 0);
 }
 
-fn perlinNoise3D(x: f32, y: f32, z: f32) -> f32 {
-    var X: i32 = i32(floor(x)) & 255;
-    var Y: i32 = i32(floor(y)) & 255;
-    var Z: i32 = i32(floor(z)) & 255;
-    
-    var x_new: f32 = x - floor(x);
-    var y_new: f32 = y - floor(y);
-    var z_new: f32 = z - floor(z);
-    
-    var u: f32 = fade(x);
-    var v: f32 = fade(y);
-    var w: f32 = fade(z);
-    
-    var A: i32 = p[X] + Y;
-    var AA: i32 = p[A] + Z;
-    var AB: i32 = p[A + 1] + Z;
-    var B: i32 = p[X + 1] + Y;
-    var BA: i32 = p[B] + Z;
-    var BB: i32 = p[B + 1] + Z;
+fn perlinNoise3D(coord: vec3f) -> f32 {
+    let floored = vec3u(floor(coord)) & vec3u(255);
 
-    return lerp(w, lerp(v, lerp(u, dot(grad3(p[AA], x, y, z), vec3<f32>(x, y, z)),
-                                dot(grad3(p[BA], x - 1.0, y, z), vec3<f32>(x - 1.0, y, z))),
-                        lerp(u, dot(grad3(p[AB], x, y - 1.0, z), vec3<f32>(x, y - 1.0, z)),
-                                dot(grad3(p[BB], x - 1.0, y - 1.0, z), vec3<f32>(x - 1.0, y - 1.0, z)))),
-                lerp(v, lerp(u, dot(grad3(p[AA + 1], x, y, z - 1.0), vec3<f32>(x, y, z - 1.0)),
-                                dot(grad3(p[BA + 1], x - 1.0, y, z - 1.0), vec3<f32>(x - 1.0, y, z - 1.0))),
-                        lerp(u, dot(grad3(p[AB + 1], x, y - 1.0, z - 1.0), vec3<f32>(x, y - 1.0, z - 1.0)),
-                                dot(grad3(p[BB + 1], x - 1.0, y - 1.0, z - 1.0), vec3<f32>(x - 1.0, y - 1.0, z - 1.0)))));
+    let fract = fract(coord);
+    
+    let u: f32 = fade(fract.x);
+    let v: f32 = fade(fract.y);
+    let w: f32 = fade(fract.z);
+
+
+    let A: u32 = p[floored.x] + floored.y;
+    let AA: u32 = p[A] + floored.z;
+    let AB: u32 = p[A + 1u] + floored.z;
+    let B: u32 = p[floored.x + 1u] + floored.y;
+    let BA: u32 = p[B] + floored.z;
+    let BB: u32 = p[B + 1u] + floored.z;
+
+    return mix(
+        mix(
+            mix(
+                grad(p[AA], fract),
+                grad(p[BA], fract - vec3f(1.0, 0.0, 0.0)),
+                u
+            ),
+            mix(
+                grad(p[AB], fract - vec3f(0.0, 1.0, 0.0)),
+                grad(p[BB], fract - vec3f(1.0, 1.0, 0.0)),
+                u
+            ),
+            v
+        ),
+        mix(
+            mix(
+                grad(p[AA + 1], fract - vec3f(0.0, 0.0, 1.0)),
+                grad(p[BA + 1], fract - vec3f(1.0, 0.0, 1.0)),
+                u
+            ),
+            mix(
+                grad(p[AB + 1], fract - vec3f(0.0, 1.0, 1.0)),
+                grad(p[BB + 1], fract - vec3f(1.0, 1.0, 1.0)),
+                u
+            ),
+            v
+        ),
+        w
+    );
 }
 
 
 // Constants
-var<private> p: array<i32, 512> = array<i32, 512>(
+var<private> p: array<u32, 512> = array<u32, 512>(
     151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,
     240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,
     33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,
@@ -79,17 +93,12 @@ var<private> p: array<i32, 512> = array<i32, 512>(
     205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
 );
 
-
-
 @compute @workgroup_size(4,4,4) fn main(
     @builtin(global_invocation_id) id: vec3<u32>
 ) {
-    // Initialize permutation array
-    for (var i: i32 = 0; i < 256; i = i + 1) {
-        p[256 + i] = p[i];
-    }
+    
+    var noise_value = perlinNoise3D(vec3f(id) * 0.1) / 2.0 + 0.5;
+    // var noise_value = f32(id.y) * 0.02;
 
-    var noise_value = perlinNoise3D(f32(id.x), f32(id.y), f32(id.z));
-
-    textureStore(noise_texture, id, vec4<f32>(noise_value, 0.0, 0.0, 1.0));
+    textureStore(noise_texture, id, vec4<f32>(noise_value , 0.0, 0.0, 1.0));
 }

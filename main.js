@@ -50,7 +50,7 @@ async function init() {
 
   const noiseStage = setupNoiseStage(device, config, noiseTexture);
   const debugNoiseStage = setupDebugNoiseStage(device, config, noiseTexture, presentationFormat);
-  const marchingCubesStage = setupMarchingCubesStage(device, config, noiseTexture);
+  // const marchingCubesStage = setupMarchingCubesStage(device, config, noiseTexture);
 
   const renderPassDescriptor =  {
     label: 'fluid sim visualization render pass',
@@ -85,6 +85,10 @@ async function init() {
     const renderPass = encoder.beginRenderPass(renderPassDescriptor);
 
     /* Debug Noise Stage */
+    device.queue.writeBuffer(debugNoiseStage.settingsBuffer, 0, new Uint32Array([state.frameCount % 100]))
+
+
+
     renderPass.setPipeline(debugNoiseStage.pipeline);
     renderPass.setBindGroup(0, debugNoiseStage.bindGroup);
     renderPass.draw(3);

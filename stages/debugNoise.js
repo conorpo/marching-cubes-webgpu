@@ -8,6 +8,12 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
         code: debugNoiseShaderCode,
     });
 
+    debugNoiseStage.settingsBuffer = device.createBuffer({
+        label: "Debug Noise stage settings buffer",
+        size: 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
     debugNoiseStage.bindGroupLayout = device.createBindGroupLayout({
         label: "Debug Noise stage bind group",
         entries: [
@@ -20,6 +26,13 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
                     multisampled: false,
                 },
             },
+            {
+                binding: 1,
+                visibility: GPUShaderStage.FRAGMENT,
+                buffer: {
+                    type: "uniform",
+                },
+            }
         ],
     });
 
@@ -31,6 +44,12 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
                 binding: 0,
                 resource: texture.createView(),
             },
+            {
+                binding: 1,
+                resource: {
+                    buffer: debugNoiseStage.settingsBuffer,
+                },
+            }
         ],
     });
 

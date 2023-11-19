@@ -1,4 +1,9 @@
 @group(0) @binding(0) var noise_texture : texture_3d<f32>;
+@group(0) @binding(1) var<uniform> settings: Settings;
+
+struct Settings {
+    zIndex: u32
+}
 
 const pos = array<vec2f, 3>(
     vec2f(-1, -1), vec2f(-1, 3), vec2f(3, -1)
@@ -19,9 +24,9 @@ const pos = array<vec2f, 3>(
     let depth = textureDimensions(noise_texture).z;
 
     
-    red += textureLoad(noise_texture, vec3u(coords, 0), 0).r;
+    red += textureLoad(noise_texture, vec3u(coords, settings.zIndex), 0).r;
+    green += textureLoad(noise_texture, vec3u(coords, settings.zIndex + 1), 0).r;
+    blue += textureLoad(noise_texture, vec3u(coords, settings.zIndex + 2), 0).r;
     
-
-
     return vec4f(red, green, blue, 1);
 }
