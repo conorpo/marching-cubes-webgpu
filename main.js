@@ -16,7 +16,12 @@ const state = {
 async function init() {
   //Get a WebGPU device  
   const adapter = await navigator.gpu?.requestAdapter();
-  const device = await adapter?.requestDevice();
+  const device = await adapter?.requestDevice({
+    requiredLimits: {
+      maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
+      maxBufferSize: 1024 * 1024 * 512, // 512 MB
+    }
+  });
   if (!device) { 
     alert('need a browser that supports WebGPU');
     return;
@@ -64,8 +69,7 @@ async function init() {
     ],
   };
 
-  function render(time) {
-    
+  function render(time) {   
     const encoder = device.createCommandEncoder({label: 'Command encoder'});
     const pass = encoder.beginComputePass({label: 'Compute pass'});
     
@@ -85,7 +89,7 @@ async function init() {
     const renderPass = encoder.beginRenderPass(renderPassDescriptor);
 
     /* Debug Noise Stage */
-    device.queue.writeBuffer(debugNoiseStage.settingsBuffer, 0, new Uint32Array([state.frameCount % 100]))
+    device.queue.writeBuffer(debugNoiseStage.settingsBuffer, 0, new Uint32Array([Math.abs(Math.round(time / 50) % 100 - 50)]))
 
 
 

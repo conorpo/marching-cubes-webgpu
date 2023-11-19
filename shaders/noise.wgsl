@@ -97,7 +97,7 @@ var<private> p: array<u32, 512> = array<u32, 512>(
     @builtin(global_invocation_id) id: vec3<u32>
 ) {
     
-    var noise_value = perlinNoise3D(vec3f(id) * 0.1) / 2.0 + 0.5;
+    var noise_value = perlinNoise3D(vec3f(id) * 0.05) / 2.0 + 0.5;
     // var noise_value = f32(id.y) * 0.02;
 
     textureStore(noise_texture, id, vec4<f32>(noise_value , 0.0, 0.0, 1.0));
