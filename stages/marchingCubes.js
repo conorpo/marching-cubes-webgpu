@@ -22,31 +22,40 @@ export function setupMarchingCubesStage(device, config, noiseTexture) {
     
     marchingCubesStage.settingsBuffer = device.createBuffer({
         label: "Marching Cubes Settings",
-        size: 4,
+        size: 8,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    marchingCubesStage.atomicsBuffer = device.createBuffer({
+    marchingCubesStage.settings = {
+        isoValue: 0.5,
+        interpolationFactor: 1.0,
+    };
+
+    marchingCubesStage.updateSettingsBuffer = () => {
+        device.queue.writeBuffer(marchingCubesStage.settingsBuffer, 0, new Float32Array([marchingCubesStage.settings.isoValue, marchingCubesStage.settings.interpolationFactor]));
+    };
+    marchingCubesStage.updateSettingsBuffer(); // Initial update
+
+    marchingCubesStage.indirectArgsBuffer = device.createBuffer({
         label: "Marching Cubes Atomics",
-        size: 8,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        size: 24,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
 
-    device.queue.writeBuffer(marchingCubesStage.settingsBuffer, 0, new Float32Array([config.isoLevel]));
-    device.queue.writeBuffer(marchingCubesStage.atomicsBuffer, 0, new Uint32Array([0, 0]));
+    device.queue.writeBuffer(marchingCubesStage.indirectArgsBuffer, 0, new Uint32Array([0, 0, 1, 0, 0, 0]));
 
     const cellCount = config.cellCountX * config.cellCountY * config.cellCountZ;
 
-    marchingCubesStage.verticesBuffer = device.createBuffer({
+    marchingCubesStage.vertexBuffer = device.createBuffer({
         label: "Marching Cubes Vertices",
         size: cellCount * 12 * 6 * 4, //Each cell can potentially have 12 vertices, each vertex is 6 floats, each float is 4 bytes
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        usage: GPUBufferUsage.STORAGE |  GPUBufferUsage.VERTEX ,
     });
 
-    marchingCubesStage.indicesBuffer = device.createBuffer({
+    marchingCubesStage.indexBuffer = device.createBuffer({
         label: "Marching Cubes Indices",
         size: cellCount * 5 * 3 * 4, //Each cell can potentially have 5 triangles, each triangle has 3 indices, each index is 4 bytes
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDEX,
     });
     
     marchingCubesStage.LUT = device.createBuffer({
@@ -123,19 +132,19 @@ export function setupMarchingCubesStage(device, config, noiseTexture) {
             {
                 binding: 2,
                 resource: {
-                    buffer: marchingCubesStage.atomicsBuffer,
+                    buffer: marchingCubesStage.indirectArgsBuffer,
                 },
             },
             {
                 binding: 3,
                 resource: {
-                    buffer: marchingCubesStage.verticesBuffer,
+                    buffer: marchingCubesStage.vertexBuffer,
                 },
             },
             {
                 binding: 4,
                 resource: {
-                    buffer: marchingCubesStage.indicesBuffer,
+                    buffer: marchingCubesStage.indexBuffer,
                 },
             },
             {

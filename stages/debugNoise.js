@@ -73,6 +73,18 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
         }
     });
 
+    debugNoiseStage.renderPassDescriptor = {
+        label: "Debug Noise stage render pass",
+        colorAttachments: [
+            {
+                view: undefined, // Assigned later
+                loadOp: "clear",
+                storeOp: "store",
+                clearColor: {r: 0, g: 0, b: 0, a: 1},
+            },
+        ]
+    };
+
     return debugNoiseStage;
     
 }
