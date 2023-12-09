@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "dat.gui": "^0.7.9",
-    "gl-matrix": "^3.4.3",
-    "vite-plugin-glsl": "^1.1.2"
+    "vite-plugin-glsl": "^1.1.2",
+    "wgpu-matrix": "^2.5.1"
   }
 }

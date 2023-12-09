@@ -3,35 +3,29 @@ import { setupDebugNoiseStage } from './stages/debugNoise.js';
 import { setupMarchingCubesStage } from './stages/marchingCubes.js';
 import { setupRenderingStage } from './stages/rendering.js';
 import { setupUI, matToString } from './util/ui.js';
+import { setupCamera } from './util/camera.js';
 import { setupInput } from './util/input.js';
-import { mat4, vec4, vec3, quat } from 'gl-matrix';
+
+import { mat4, vec4, vec3, quat } from 'wgpu-matrix';
 
 const config = {
-  cellCountX: 10 * 4, // must be a multiple of 4
-  cellCountY: 10 * 4,
-  cellCountZ: 10 * 4,  
+  cellCountX: 20 * 4, // must be a multiple of 4
+  cellCountY: 20 * 4,
+  cellCountZ: 20 * 4,  
 
-  outputWidth: 16 * 60,
-  outputHeight: 9 * 60,
+  outputWidth: 16 * 120,
+  outputHeight: 9 * 120,
 
   toggleDebugNoise: false,
   toggleDebugDisplay: false,
   animateIsoValue: false,
-  speed: 0.05,
+  speed: 0.015,
+  mouseSensitivity: 0.0002,
 };
 
-const state = {
+let state = {
   frameCount: 0,
-  prevTime: 0,
-
-  camera: {
-    fov: 45,
-    pos: null, /* Initialized in init() */
-    rotation: null,
-    model_mat: null,
-    view_mat: null,
-    proj_mat: null,
-  },
+  time: 0,
 
   keyboard: {
     w: false,
@@ -40,131 +34,87 @@ const state = {
     d: false,
     ' ': false,
     Control: false,
+  },
+
+  mouse: {
+    movementX: 0,
+    movementY: 0,
   }
 };
 
-const localBuffers = {
-  vsSettings: new Float32Array((3 * (4 * 4) + 3 + 1) ),
-}
-
 async function init() {
   //Get a WebGPU device 
-  state.camera.pos = vec3.fromValues(10, 15, 50);
-  state.camera.rotation = quat.fromValues(0, 0, 0, 1);
-
-  state.camera.model_mat = mat4.create();
-  state.camera.view_mat = mat4.create();
-  state.camera.proj_mat = mat4.create();
-
-  localBuffers.vsSettings.set(state.camera.model_mat, 0);
-  localBuffers.vsSettings.set(state.camera.view_mat, 4 * 4);
-  localBuffers.vsSettings.set(state.camera.proj_mat, 4 * 4 * 2);
-  localBuffers.vsSettings.set(state.camera.pos, 4 * 4 * 3);
-
-  
   const adapter = await navigator.gpu?.requestAdapter();
+  
   const device = await adapter?.requestDevice({
     requiredLimits: {
       maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
       maxBufferSize: 1024 * 1024 * 512, // 512 MB
     }
   });
-  if (!device) { 
-    alert('need a browser that supports WebGPU');
-    return;
-  }  
+  if (!device) return alert('Need a browser that supports WebGPU');
+  
+  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
   
   // Get a WebGPU context from the canvas and configure it
   const canvas =  document.getElementById('webgpu_canvas');
   const debugElement = document.getElementsByClassName('debug')[0];
   canvas.width = config.outputWidth;
   canvas.height = config.outputHeight;
-  const context =  canvas.getContext('webgpu');
+  const context = canvas.getContext('webgpu');
   
-  if(!context) {
-    console.error('need a browser that supports WebGPU');
-    return;
-  } else{
-    console.log('Context created successfully');
-  }
-
-  const canvasInfo = {
-    canvas,
-    presentationFormat: navigator.gpu.getPreferredCanvasFormat(),
-    depthTextureView: null,
-  }
+  if(!context) return alert('Need a browser that supports WebGPU');
+  console.log('Context created successfully');
 
   context.configure({  
     device,
-    format: canvasInfo.presentationFormat,
+    format: presentationFormat,
   });
 
   //Setup Stages
   const noiseStage = setupNoiseStage(device, config);
-  const debugNoiseStage = setupDebugNoiseStage(device, config, noiseStage.noiseTexture, canvasInfo.presentationFormat);
+  const debugNoiseStage = setupDebugNoiseStage(device, config, noiseStage.noiseTexture, presentationFormat);
   const marchingCubesStage = setupMarchingCubesStage(device, config, noiseStage.noiseTexture);
-  const renderingStage = setupRenderingStage(device, config, canvasInfo.presentationFormat);
+  const renderingStage = setupRenderingStage(device, config, presentationFormat);
 
   //Setup UI / Input
-  setupUI(config, state, noiseStage, marchingCubesStage, renderingStage);
   setupInput(config, state, canvas)
+  const camera = setupCamera(config, state, renderingStage); 
+  setupUI(config, state, noiseStage, marchingCubesStage, renderingStage, camera);
+
+  //Setup 
+  const model_mat = mat4.identity();
+  renderingStage.cameraSettings.set(model_mat, 0); // Offset Model by Camera Position))
 
   async function render(time) {   
     const deltaTime = time - state.time;
     state.time = time;
 
-    
-    
-    const cameraRotationMatrix = mat4.fromQuat(mat4.create(), state.camera.rotation);
-    
-    /* Update Position */
-    const move_vector = vec3.fromValues(
-        state.keyboard.d - state.keyboard.a, 
-        state.keyboard[' '] - state.keyboard.Control,
-        state.keyboard.s - state.keyboard.w,
-    );    
-    
-    vec3.normalize(move_vector, move_vector);
-    vec3.transformMat4(move_vector, move_vector, cameraRotationMatrix);
-    vec3.scale(move_vector, move_vector, config.speed);
-    vec3.add(state.camera.pos, state.camera.pos, move_vector);
-  
-    /* Update Camera Matrices / Buffers */
-    
-    mat4.multiply(state.camera.view_mat, cameraRotationMatrix, mat4.create()); // Rotate
-    mat4.translate(state.camera.view_mat , state.camera.view_mat, vec3.negate(vec3.create(), state.camera.pos)); // Translate
-    mat4.perspectiveZO(state.camera.proj_mat, state.camera.fov * Math.PI / 180, canvas.width / canvas.height, 0.1, 1000); // Projection Matrix
-
-    quat.normalize(state.camera.rotation, state.camera.rotation);
-
-    //localBuffers.vsSettingsBuffer.set(state.camera.model_mat, 0);
-    localBuffers.vsSettings.set(state.camera.view_mat, 4 * 4);
-    localBuffers.vsSettings.set(state.camera.proj_mat, 4 * 4 * 2);
-    localBuffers.vsSettings.set(state.camera.pos, 4 * 4 * 3);
-    device.queue.writeBuffer(renderingStage.vsSettingsBuffer, 0, localBuffers.vsSettings);
+    camera.update(state.keyboard, state.mouse, deltaTime)
+    state.mouse.movementX = 0;
+    state.mouse.movementY = 0;
+    renderingStage.updateCameraSettingsBuffer();
 
     const encoder = device.createCommandEncoder({label: 'Command encoder'});
-    const pass = encoder.beginComputePass({label: 'Compute pass'});
+    const computePass = encoder.beginComputePass({label: 'Compute Pass'});
     
     /* Noise Stage */
-    pass.setPipeline(noiseStage.pipeline);
-    pass.setBindGroup(0, noiseStage.bindGroup);
-    pass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
+    computePass.setPipeline(noiseStage.pipeline);
+    computePass.setBindGroup(0, noiseStage.bindGroup);
+    computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
     
     /* Marching Cubes Stage */
     if(config.animateIsoValue === true) {
       marchingCubesStage.settings.isoValue = Math.sin(time / 400) / 40 + 0.5;  
       marchingCubesStage.updateSettingsBuffer();
     }
+    computePass.setPipeline(marchingCubesStage.pipeline);
+    computePass.setBindGroup(0, marchingCubesStage.bindGroup);
+    computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
 
-    pass.setPipeline(marchingCubesStage.pipeline);
-    pass.setBindGroup(0, marchingCubesStage.bindGroup);
-    pass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
-    // pass.dispatchWorkgroups(1, 1, 1);
-    pass.end();
+    computePass.end();
 
     if(config.toggleDebugNoise === true){
-
       debugNoiseStage.renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView(); // Update render pass view
       const renderPass = encoder.beginRenderPass(debugNoiseStage.renderPassDescriptor);
 
@@ -194,24 +144,24 @@ async function init() {
     const commandBuffer = encoder.finish();
     device.queue.submit([commandBuffer]);
 
-    debugElement.innerText = `FPS: ${Math.round(1000 / deltaTime)}
-    Position: x: ${state.camera.pos[0].toFixed(2)} y: ${state.camera.pos[1].toFixed(2)} z: ${state.camera.pos[2].toFixed(2)}
-    Rotation: x: ${state.camera.rotation[0].toFixed(2)} y: ${state.camera.rotation[1].toFixed(2)} z: ${state.camera.rotation[2].toFixed(2)} w: ${state.camera.rotation[3].toFixed(2)}\n
-    Model_Mat: ${matToString(state.camera.model_mat)}
-    \nView_Mat: ${matToString(state.camera.view_mat)} 
-    \nProj_Mat: ${matToString(state.camera.proj_mat)}`
-
-    state.frameCount++;
+    if(config.toggleDebugDisplay === true) {
+      debugElement.innerText = `FPS: ${Math.round(1000 / deltaTime)}
+      Position: x: ${camera.pos_[0].toFixed(2)} y: ${camera.pos_[1].toFixed(2)} z: ${camera.pos_[2].toFixed(2)}
+      Pitch: ${camera.pitch.toFixed(2)} Yaw: ${camera.yaw.toFixed(2)}
+      \nModel_Mat: ${matToString(model_mat)}
+      \nView_Mat: ${matToString(camera.view_mat)} 
+      \nProj_Mat: ${matToString(camera.proj_mat)}`
+    }
 
     //Reset needed buffers for next frame
     device.queue.writeBuffer(marchingCubesStage.indirectArgsBuffer, 0, new Uint32Array([0, 0, 1, 0, 0, 0]));
-
+    
+    state.frameCount++;
     requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
 }
-
 
 init();
   

@@ -1,5 +1,3 @@
-import { quat } from 'gl-matrix';
-
 export function setupInput(config, state, canvas) {
     // window.addEventListener('beforeunload', (e) => {
     //     e.preventDefault();
@@ -35,8 +33,8 @@ export function setupInput(config, state, canvas) {
     canvas.addEventListener('mousemove', (e) => {
         if(document.pointerLockElement !== canvas) return;
 
-        quat.rotateY(state.camera.rotation, state.camera.rotation, e.movementX * 0.0003);
-        //quat.rotateX(state.camera.rotation, state.camera.rotation, e.movementY * 0.0003);
+        state.mouse.movementX = e.movementX;
+        state.mouse.movementY = e.movementY;
     });
 
     canvas.addEventListener('pointerlockchange', (e) => {

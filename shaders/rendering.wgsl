@@ -44,7 +44,7 @@ const positions = array<vec3<f32>, 9>(
     vsOut.fragPos = worldPos.xyz;
     vsOut.position = vsInput.projectionMatrix * vsInput.viewMatrix * worldPos;
     vsOut.color = vec3f(0.4, 1.0-(worldPos.y/30.0), 0.8);
-    vsOut.color *= clamp((1- vsOut.position.z / 50.0) , 0.0, 1.0);
+    vsOut.color *= clamp((1- vsOut.position.z / 2500.0) , 0.0, 1.0);
     vsOut.normal = vert.normal;
 
     return vsOut;
@@ -56,7 +56,7 @@ const positions = array<vec3<f32>, 9>(
     let normal = normalize(fsInput.normal);
     let eyeDir = normalize(fsInput.fragPos - vsInput.eye_pos);
 
-    let intensity = clamp(dot(normal, eyeDir), 0.0, 1.0);
+    let intensity = clamp(dot(eyeDir, normal), 0.0, 1.0);
     color *= intensity;    
 
     return vec4f(color, 1.0);

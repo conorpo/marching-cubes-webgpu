@@ -3,6 +3,7 @@ struct Settings {
     interpolationFactor: f32,
 };
 
+
 struct Vertex {
     position: vec3<f32>,
     normal: vec3<f32>
@@ -32,13 +33,13 @@ struct EdgeLUTEntry {
     interpolatedOffset: vec3f
 }
 
-
 @group(0) @binding(0) var noise_texture: texture_3d<f32>;
 @group(0) @binding(1) var<uniform> settings: Settings;
 @group(0) @binding(2) var<storage, read_write> indirectArgs : IndirectArgs;
 @group(0) @binding(3) var<storage, read_write> vertices: array<Vertex>;
 @group(0) @binding(4) var<storage, read_write> indices: array<u32>;
 @group(0) @binding(5) var<uniform> LUT: array<ConfigurationEntry, 256>;
+// Add a binding for cube id
 
 // Maps the edge indeces to the new indeces in the vertex buffer
 var<private> indexMap: array<u32, 12>;
@@ -62,11 +63,12 @@ fn valueAt(pos: vec3<u32>) -> f32 {
     return textureLoad(noise_texture, pos, 0).r;
 }
 
+// Maybe approximate AO here somehow?
 fn normalAt(pos: vec3<u32>) -> vec3<f32> {
     return vec3(
-        valueAt(pos + vec3<u32>(1,0,0)) - valueAt(pos - vec3<u32>(1,0,0)),
-        valueAt(pos + vec3<u32>(0,1,0)) - valueAt(pos - vec3<u32>(0,1,0)),
-        valueAt(pos + vec3<u32>(0,0,1)) - valueAt(pos - vec3<u32>(0,0,1))
+        valueAt(pos - vec3<u32>(1,0,0)) - valueAt(pos + vec3<u32>(1,0,0)),
+        valueAt(pos - vec3<u32>(0,1,0)) - valueAt(pos + vec3<u32>(0,1,0)),
+        valueAt(pos - vec3<u32>(0,0,1)) - valueAt(pos + vec3<u32>(0,0,1))
     );
 }
 
@@ -89,14 +91,14 @@ fn normalAt(pos: vec3<u32>) -> vec3<f32> {
 
 
     var cubeIndex: u32 = 0;
-    if (isoValues[0] < settings.isoValue) { cubeIndex |= 1; }
-    if (isoValues[1] < settings.isoValue) { cubeIndex |= 2; }
-    if (isoValues[2] < settings.isoValue) { cubeIndex |= 4; }
-    if (isoValues[3] < settings.isoValue) { cubeIndex |= 8; }
-    if (isoValues[4] < settings.isoValue) { cubeIndex |= 16; }
-    if (isoValues[5] < settings.isoValue) { cubeIndex |= 32; }
-    if (isoValues[6] < settings.isoValue) { cubeIndex |= 64; }
-    if (isoValues[7] < settings.isoValue) { cubeIndex |= 128; }
+    if (isoValues[0] > settings.isoValue) { cubeIndex |= 1; }
+    if (isoValues[1] > settings.isoValue) { cubeIndex |= 2; }
+    if (isoValues[2] > settings.isoValue) { cubeIndex |= 4; }
+    if (isoValues[3] > settings.isoValue) { cubeIndex |= 8; }
+    if (isoValues[4] > settings.isoValue) { cubeIndex |= 16; }
+    if (isoValues[5] > settings.isoValue) { cubeIndex |= 32; }
+    if (isoValues[6] > settings.isoValue) { cubeIndex |= 64; }
+    if (isoValues[7] > settings.isoValue) { cubeIndex |= 128; }
 
     let config = LUT[cubeIndex];
 

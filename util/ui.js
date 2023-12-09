@@ -1,6 +1,6 @@
 import * as dat from 'dat.gui';
 
-export function setupUI(config, state, noiseStage, marchingCubesStage, renderingStage){
+export function setupUI(config, state, noiseStage, marchingCubesStage, renderingStage, camera){
     const gui = new dat.GUI();
     const debugDisplay = document.getElementsByClassName("debug")[0];
 
@@ -29,7 +29,9 @@ export function setupUI(config, state, noiseStage, marchingCubesStage, rendering
     });
 
     //Rendering Settings
-    renderingFolder.add(state.camera, 'fov', 45, 180);
+    renderingFolder.add(camera, 'fov', 45, 180).onChange(()=>{
+        camera.update_projection();
+    });
 
 
     //General Settigns
@@ -47,11 +49,11 @@ export function setupUI(config, state, noiseStage, marchingCubesStage, rendering
 
 export function matToString(mat) {
     let str = "\n";
-    for (let i = 0; i < mat.length; i++) {
-        str += mat[i].toFixed(1).padStart(4,'+') + ", ";
-        if((i + 1) % 4 === 0 && i !== mat.length - 1){
-            str += "\n";
+    for(let r = 0; r < 4; r++){
+        for(let c = 0; c < 4; c++){
+            str += mat[r + c*4].toFixed(1).padStart(4,'+') + ", ";
         }
+        str += "\n";
     }
     return str;
 }

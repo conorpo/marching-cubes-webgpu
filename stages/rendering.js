@@ -8,11 +8,18 @@ export function setupRenderingStage(device, config, presentationFormat) {
         code: renderingShaderCode,
     });
 
-    renderingStage.vsSettingsBuffer = device.createBuffer({
+    renderingStage.cameraSettings = new Float32Array(4 * 4 * 3 + 4);
+
+    renderingStage.cameraSettingsBuffer = device.createBuffer({
         label: "Rendering stage vertex shader settings buffer",
-        size: (3 * (4 * 4) + 3 + 1) * 4, // 3 4x4 matrix of 4 byte floats, + vec3 of 4 byte floats + 4 byte padding
+        size: ((4 * 4 * 3 + 3 + 1) * 4), // 3 4x4 matrix of 4 byte floats, + vec3 of 4 byte floats + 4 byte padding
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+
+    renderingStage.updateCameraSettingsBuffer = () => {
+        device.queue.writeBuffer(renderingStage.cameraSettingsBuffer, 0, renderingStage.cameraSettings);
+    
+    }
 
     renderingStage.bindGroupLayout = device.createBindGroupLayout({
         label: "Rendering stage bind group",
@@ -34,7 +41,7 @@ export function setupRenderingStage(device, config, presentationFormat) {
             {
                 binding: 0,
                 resource: {
-                    buffer: renderingStage.vsSettingsBuffer,
+                    buffer: renderingStage.cameraSettingsBuffer,
                 },
             },
         ],
