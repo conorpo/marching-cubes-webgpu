@@ -1,6 +1,6 @@
 import renderingShaderCode from '../shaders/rendering.wgsl';
 
-export function setupRenderingStage(device, config, presentationFormat) {
+export async function setupRenderingStage(device, config, presentationFormat) {
     const renderingStage = {};
 
     renderingStage.module = device.createShaderModule({
@@ -47,12 +47,38 @@ export function setupRenderingStage(device, config, presentationFormat) {
         ],
     });
 
+    renderingStage.depthTexture = device.createTexture({
+        label: "Depth texture",
+        size: [config.outputWidth, config.outputHeight],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+
+    renderingStage.depthTextureView = renderingStage.depthTexture.createView();
+
+    renderingStage.renderPassDescriptor = {
+        colorAttachments: [
+            {
+                view: undefined, // Assigned later
+                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                storeOp: "store",
+                loadOp: "clear",
+            },
+        ],
+        depthStencilAttachment: {
+            view: renderingStage.depthTextureView, // Assigned later
+            depthLoadOp: "clear",
+            depthStoreOp: "store",
+            depthClearValue: 1.0,
+        },
+    };
+
     renderingStage.pipelineLayout = device.createPipelineLayout({
         label: "Rendering stage pipeline layout",
         bindGroupLayouts: [renderingStage.bindGroupLayout],
     });
 
-    renderingStage.pipeline = device.createRenderPipeline({
+    renderingStage.pipeline = await device.createRenderPipelineAsync({
         label: "Rendering stage pipeline",
         layout: renderingStage.pipelineLayout,
         vertex: {
@@ -92,89 +118,5 @@ export function setupRenderingStage(device, config, presentationFormat) {
         },
     });
 
-    renderingStage.depthTexture = device.createTexture({
-        label: "Depth texture",
-        size: [config.outputWidth, config.outputHeight],
-        format: "depth24plus",
-        usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-
-    renderingStage.depthTextureView = renderingStage.depthTexture.createView();
-
-    renderingStage.renderPassDescriptor = {
-        colorAttachments: [
-            {
-                view: undefined, // Assigned later
-                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                storeOp: "store",
-                loadOp: "clear",
-            },
-        ],
-        depthStencilAttachment: {
-            view: renderingStage.depthTextureView, // Assigned later
-            depthLoadOp: "clear",
-            depthStoreOp: "store",
-            depthClearValue: 1.0,
-        },
-    };
-
-
-    //Debugging
-    renderingStage.testVertexBuffer = device.createBuffer({
-        label: "Test vertex buffer",
-        size: 4 * 4 * 2 * 16, // 4 4-byte floats
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    });
-
-    renderingStage.testVertexBufferArray = new Float32Array([
-        1, 0, 0, 0,
-        0, 0, 0, 0,
-        -1, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 0,
-        0, 0, -1, 0,
-        0, 0, 0, 0,
-        1, 1, 0, 0,
-        0, 0, 0, 0,
-        1, -1, 0, 0,
-        0, 0, 0, 0,
-        1, 0, 1, 0,
-        0, 0, 0, 0,
-        1, 0, -1, 0,
-        0, 0, 0, 0,
-        -1, 1, 0, 0,
-        0, 0, 0, 0,
-        -1, -1, 0, 0,
-        0, 0, 0, 0,
-        -1, 0, 1, 0,
-        0, 0, 0, 0,
-        -1, 0, -1, 0,
-        0, 0, 0, 0,
-        0, 1, 1, 0,
-        0, 0, 0, 0,
-        0, 1, -1, 0,
-        0, 0, 0, 0,
-    ])
-
-    device.queue.writeBuffer(renderingStage.testVertexBuffer, 0, renderingStage.testVertexBufferArray);
-
-    renderingStage.testIndexBuffer = device.createBuffer({
-        label: "Test index buffer",
-        size: 4 * 16, // 4 4-byte floats
-        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-    });
-
-    renderingStage.testIndexBufferArray = new Uint32Array([
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-    ]);
-
-    device.queue.writeBuffer(renderingStage.testIndexBuffer, 0, renderingStage.testIndexBufferArray);
-
     return renderingStage;
-
 }

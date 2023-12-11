@@ -1,6 +1,6 @@
 import noiseShaderCode from '../shaders/noise.wgsl?raw';
 
-export function setupNoiseStage(device, config) {
+export async function setupNoiseStage(device, config) {
     const noiseStage = {};
     noiseStage.module = device.createShaderModule({
         label: "Noise Shader",
@@ -76,7 +76,7 @@ export function setupNoiseStage(device, config) {
         bindGroupLayouts: [noiseStage.bindGroupLayout],
     });
 
-    noiseStage.pipeline = device.createComputePipeline({
+    noiseStage.pipeline = await device.createComputePipelineAsync({
         label: "Noise stage pipeline",
         layout: noiseStage.pipelineLayout,
         compute: {

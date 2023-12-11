@@ -32,10 +32,11 @@
 - translate the noise and the mesh based on position, so that we have an endless space, shouldnt affect performance at all
 - animate the noise itself somehow
 - add some procedural / interesting coloring/texturing
-- add this one fps counter library that is really clean looking
+- add this one fps counter library that is really clean looking (done)
 - add additional sim settings
 - store vertex buffers as seperate, so that they can be packed tightly
-- add debug timing info
+- add debug timing info (done)
+- setup auto build
 ```
 
 ## BindGroups Overview

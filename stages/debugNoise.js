@@ -1,6 +1,6 @@
 import debugNoiseShaderCode from "../shaders/debug_noise.wgsl";
 
-export function setupDebugNoiseStage(device, config, texture, presentationFormat) {
+export async function setupDebugNoiseStage(device, config, texture, presentationFormat) {
     const debugNoiseStage = {};
 
     debugNoiseStage.module = device.createShaderModule({
@@ -58,7 +58,19 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
         bindGroupLayouts: [debugNoiseStage.bindGroupLayout],
     });
 
-    debugNoiseStage.pipeline = device.createRenderPipeline({
+    debugNoiseStage.renderPassDescriptor = {
+        label: "Debug Noise stage render pass",
+        colorAttachments: [
+            {
+                view: undefined, // Assigned later
+                loadOp: "clear",
+                storeOp: "store",
+                clearColor: {r: 0, g: 0, b: 0, a: 1},
+            },
+        ]
+    };
+
+    debugNoiseStage.pipeline = await device.createRenderPipelineAsync({
         label: "Debug Noise stage pipeline",
         layout: debugNoiseStage.pipelineLayout,
         vertex: {
@@ -72,19 +84,6 @@ export function setupDebugNoiseStage(device, config, texture, presentationFormat
             targets: [{format: presentationFormat}],
         }
     });
-
-    debugNoiseStage.renderPassDescriptor = {
-        label: "Debug Noise stage render pass",
-        colorAttachments: [
-            {
-                view: undefined, // Assigned later
-                loadOp: "clear",
-                storeOp: "store",
-                clearColor: {r: 0, g: 0, b: 0, a: 1},
-            },
-        ]
-    };
-
-    return debugNoiseStage;
     
+    return debugNoiseStage;
 }

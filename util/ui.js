@@ -12,7 +12,7 @@ export function setupUI(config, state, noiseStage, marchingCubesStage, rendering
     generalFolder.add(config, 'toggleDebugNoise');
 
     //Noise Settings
-    noiseFolder.add(noiseStage.settings, 'scale', 0.05, 0.15).onChange(()=>{
+    noiseFolder.add(noiseStage.settings, 'scale', 0.01, 0.15).onChange(()=>{
         noiseStage.updateSettingsBuffer();
     });
 
@@ -31,16 +31,6 @@ export function setupUI(config, state, noiseStage, marchingCubesStage, rendering
     //Rendering Settings
     renderingFolder.add(camera, 'fov', 45, 180).onChange(()=>{
         camera.update_projection();
-    });
-
-
-    //General Settigns
-    generalFolder.add(config, 'toggleDebugDisplay').onChange(()=>{
-        if(config.toggleDebugDisplay === true){
-            debugDisplay.style.display = "block";
-        } else{
-            debugDisplay.style.display = "none";
-        }
     });
 
     return gui;

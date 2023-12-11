@@ -43,7 +43,6 @@ struct EdgeLUTEntry {
 
 // Maps the edge indeces to the new indeces in the vertex buffer
 var<private> indexMap: array<u32, 12>;
-var<private> currentIdx: u32 = 0;
 const edgeLUT = array<EdgeLUTEntry,12>(
     EdgeLUTEntry(0,1, vec3f(0.0, 0.0, 0.0), vec3f(1.0, 0.0, 0.0)),
     EdgeLUTEntry(1,2, vec3f(1.0, 0.0, 0.0), vec3f(0.0, 0.0, 1.0)),
@@ -111,7 +110,7 @@ fn normalAt(pos: vec3<u32>) -> vec3<f32> {
     }
 
     var startingVertIndex: u32 = atomicAdd(&indirectArgs.vertIndex, config.edgeCount);
-    var startingIndexIndex: u32 = atomicAdd(&indirectArgs.indexCount, config.triCount * 3);
+    let startingIndexIndex: u32 = atomicAdd(&indirectArgs.indexCount, config.triCount * 3);
 
 
     let global_pos = vec3f(id.xyz);
@@ -131,13 +130,13 @@ fn normalAt(pos: vec3<u32>) -> vec3<f32> {
 
         let vert_pos: vec3f = vec3f(id.xyz) + edgeLUTEntry.staticOffset + edgeLUTEntry.interpolatedOffset * t;
         
-        indexMap[i] = startingVertIndex + currentIdx;
+        indexMap[i] = startingVertIndex;
         vertices[indexMap[i]].position = vert_pos; 
         let na = normalAt(id.xyz + vec3u(edgeLUTEntry.staticOffset));
         let nb = normalAt(id.xyz + vec3u(edgeLUTEntry.staticOffset + edgeLUTEntry.interpolatedOffset));
         vertices[indexMap[i]].normal = mix(na, nb, t);
 
-        currentIdx += 1;
+        startingVertIndex += 1;
 
         edgeMask <<= 1;
     }

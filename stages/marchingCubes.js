@@ -1,18 +1,6 @@
 import marchingCubesShaderCode from '../shaders/marchingCubes.wgsl';
 
-/*
-    Bindings:
-    @group(0) @binding(0) var noise_texture: texture_3d<f32>;
-    @group(0) @binding(1) var<uniform> settings: Settings;
-
-    @group(0) @binding(2) var<storage, read_write> atomics: Atomics;
-    @group(0) @binding(3) var<storage, read_write> vertices: array<Vertex>;
-    @group(0) @binding(4) var<storage, read_write> indices: array<u32>;
-
-    @group(0) @binding(5) var<uniform> triLUT: array<array<vec3i, 5>, 256>;
-    @group(0) @binding(6) var<uniform> edgeLUT: array<u32, 256>;
-*/
-export function setupMarchingCubesStage(device, config, noiseTexture) {
+export async function setupMarchingCubesStage(device, config, noiseTexture) {
     const marchingCubesStage = {};
 
     marchingCubesStage.module = device.createShaderModule({
@@ -161,7 +149,7 @@ export function setupMarchingCubesStage(device, config, noiseTexture) {
         bindGroupLayouts: [marchingCubesStage.bindGroupLayout],
     });
 
-    marchingCubesStage.pipeline = device.createComputePipeline({
+    marchingCubesStage.pipeline = await device.createComputePipelineAsync({
         label: "Marching Cubes Pipeline",
         layout: marchingCubesStage.pipelineLayout,
         compute: {
