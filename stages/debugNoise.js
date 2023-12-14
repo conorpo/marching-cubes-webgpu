@@ -36,22 +36,25 @@ export async function setupDebugNoiseStage(device, config, texture, presentation
         ],
     });
 
-    debugNoiseStage.bindGroup = device.createBindGroup({
-        label: "Debug Noise stage bind group",
-        layout: debugNoiseStage.bindGroupLayout,
-        entries: [
-            {
-                binding: 0,
-                resource: texture.createView(),
-            },
-            {
-                binding: 1,
-                resource: {
-                    buffer: debugNoiseStage.settingsBuffer,
+    debugNoiseStage.createBindGroup = (texture) => {
+        debugNoiseStage.bindGroup = device.createBindGroup({
+            label: "Debug Noise stage bind group",
+            layout: debugNoiseStage.bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: texture.createView(),
                 },
-            }
-        ],
-    });
+                {
+                    binding: 1,
+                    resource: {
+                        buffer: debugNoiseStage.settingsBuffer,
+                    },
+                }
+            ],
+        });
+    }
+    debugNoiseStage.createBindGroup(texture);
 
     debugNoiseStage.pipelineLayout = device.createPipelineLayout({
         label: "Debug Noise stage pipeline layout",

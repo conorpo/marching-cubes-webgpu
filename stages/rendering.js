@@ -8,16 +8,16 @@ export async function setupRenderingStage(device, config, presentationFormat) {
         code: renderingShaderCode,
     });
 
-    renderingStage.cameraSettings = new Float32Array(4 * 4 * 3 + 4);
+    renderingStage.renderSettings = new Float32Array(4 * 4 * 3 + 4 * 2);
 
-    renderingStage.cameraSettingsBuffer = device.createBuffer({
+    renderingStage.renderSettingsBuffer = device.createBuffer({
         label: "Rendering stage vertex shader settings buffer",
-        size: ((4 * 4 * 3 + 3 + 1) * 4), // 3 4x4 matrix of 4 byte floats, + vec3 of 4 byte floats + 4 byte padding
+        size: ((4 * 4 * 3 + 4 * 2) * 4), // 3 4x4 matrix of 4 byte floats, + vec3 of 4 byte floats + 4 byte padding + vec4 of 4 byte floats
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    renderingStage.updateCameraSettingsBuffer = () => {
-        device.queue.writeBuffer(renderingStage.cameraSettingsBuffer, 0, renderingStage.cameraSettings);
+    renderingStage.updateRenderSettingsBuffer = () => {
+        device.queue.writeBuffer(renderingStage.renderSettingsBuffer, 0, renderingStage.renderSettings);
     
     }
 
@@ -41,20 +41,11 @@ export async function setupRenderingStage(device, config, presentationFormat) {
             {
                 binding: 0,
                 resource: {
-                    buffer: renderingStage.cameraSettingsBuffer,
+                    buffer: renderingStage.renderSettingsBuffer,
                 },
             },
         ],
     });
-
-    renderingStage.depthTexture = device.createTexture({
-        label: "Depth texture",
-        size: [config.outputWidth, config.outputHeight],
-        format: "depth24plus",
-        usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-
-    renderingStage.depthTextureView = renderingStage.depthTexture.createView();
 
     renderingStage.renderPassDescriptor = {
         colorAttachments: [
@@ -66,12 +57,29 @@ export async function setupRenderingStage(device, config, presentationFormat) {
             },
         ],
         depthStencilAttachment: {
-            view: renderingStage.depthTextureView, // Assigned later
+            view: undefined, // Assigned later
             depthLoadOp: "clear",
             depthStoreOp: "store",
             depthClearValue: 1.0,
         },
     };
+
+    renderingStage.createDepthTexture = () => {
+        renderingStage.depthTexture?.destroy();
+
+        renderingStage.depthTexture = device.createTexture({
+            label: "Depth texture",
+            size: [config.outputWidth, config.outputHeight],
+            format: "depth24plus",
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+
+        renderingStage.depthTextureView = renderingStage.depthTexture.createView();
+
+        renderingStage.renderPassDescriptor.depthStencilAttachment.view = renderingStage.depthTextureView;
+    };
+
+    renderingStage.createDepthTexture();
 
     renderingStage.pipelineLayout = device.createPipelineLayout({
         label: "Rendering stage pipeline layout",
@@ -86,20 +94,25 @@ export async function setupRenderingStage(device, config, presentationFormat) {
             entryPoint: "vs",
             buffers: [
                 {
-                    arrayStride: 4 * 4 * 2, // position vec3 + normal + vec3 + padding
+                    arrayStride: 4 * 3, // position vec3
                     attributes: [
                         {
                             shaderLocation: 0,
                             offset: 0,
                             format: "float32x3",
-                        },
-                        {
-                            shaderLocation: 1,
-                            offset: 4 * 4,
-                            format: "float32x3",
-                        },
+                        }
                     ],
                 },
+                {
+                    arrayStride: 4 * 3, // normal vec3
+                    attributes: [
+                        {
+                            shaderLocation: 1,
+                            offset: 0,
+                            format: "float32x3",
+                        }
+                    ],
+                }
             ],
         },
         fragment: {
@@ -115,6 +128,10 @@ export async function setupRenderingStage(device, config, presentationFormat) {
             format: "depth24plus",
             depthWriteEnabled: true,
             depthCompare: "less",
+        },
+        primitive: {
+            topology: "triangle-list",
+            cullMode: "back",
         },
     });
 

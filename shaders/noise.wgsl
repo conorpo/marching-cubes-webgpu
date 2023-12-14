@@ -1,7 +1,10 @@
 
 struct Settings{
-    scale: f32
+    scale: f32,
+    blockiness: f32,
+    eye_pos: vec3f,
 }
+
 @group(0) @binding(0) var noise_texture: texture_storage_3d<r32float, write>;
 @group(0) @binding(1) var <uniform> settings : Settings;
 
@@ -96,10 +99,18 @@ var<private> p: array<u32, 512> = array<u32, 512>(
 @compute @workgroup_size(4,4,4) fn main(
     @builtin(global_invocation_id) id: vec3<u32>
 ) {
+    var pos = vec3f(id) + settings.eye_pos + vec3f(128.0,128.0,128.0);
+
+    //Just rounding position for a blocky look
+    let blockiness = (perlinNoise3D(pos / 20.0) * 0.5 + 0.5) * settings.blockiness;
+    let grid_locked = floor(pos / 10.0) * 10.0;
+    pos = mix(pos, grid_locked, blockiness);
     
-    var noise_value = perlinNoise3D(vec3f(id) * settings.scale) / 2.0 + 0.5;
-    noise_value += perlinNoise3D(vec3f(id) * settings.scale * 10.0) / 50.0;
-    // var noise_value = f32(id.y) * 0.02;
+    //Just messing around to create some interesting noise
+    var noise_value = perlinNoise3D(pos * settings.scale) / 2.0 + 0.5;
+    noise_value += perlinNoise3D(pos * settings.scale * 5.0) / 18.0;
+    noise_value += (perlinNoise3D(pos * settings.scale * 10.0) / 30.0) * (perlinNoise3D(pos * settings.scale / 5.0) / 2.0 + 0.5);
+    noise_value += sin(pos.x * 0.1) * 0.1;
 
     textureStore(noise_texture, id, vec4<f32>(noise_value , 0.0, 0.0, 1.0));
 }

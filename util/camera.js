@@ -1,23 +1,24 @@
 
 import {mat4, vec3} from "wgpu-matrix";
 
-export const setupCamera = (config, state, renderingStage) => {
+export const setupCamera = (config, state, renderingStage, noiseStage) => {
     const camera = {
-        fov: 100,
+        fov: 110,
         nearPlane: 0.1,
         farPlane: 1000,
 
         pitch: 0,
         yaw: 0,
 
-        view_mat: new Float32Array(renderingStage.cameraSettings.buffer, 4 * 4 *4, 4 * 4),
+        model_mat: new Float32Array(renderingStage.renderSettings.buffer, 0, 4 * 4), //Model Mat is shift the noise mesh to be centered at player
+        view_mat: new Float32Array(renderingStage.renderSettings.buffer, 4 * 4 * 4, 4 * 4),
         camera_mat: new Float32Array([1, 0, 0, 0,
                                     0, 1, 0, 0,
                                     0, 0, 1, 0,
-                                    50, 50, 50, 1]),
+                                    0, 0, 0, 1]),
 
-        proj_mat: new Float32Array(renderingStage.cameraSettings.buffer, 4 * 4 * 4 * 2, 4 * 4),
-        position: new Float32Array(renderingStage.cameraSettings.buffer, 4 * 4 * 4 * 3, 4),
+        proj_mat: new Float32Array(renderingStage.renderSettings.buffer, 4 * 4 * 4 * 2, 4 * 4),
+        position: new Float32Array(renderingStage.renderSettings.buffer, 4 * 4 * 4 * 3, 4),
     };
 
     camera.right_ = new Float32Array(camera.camera_mat.buffer, 0, 4);
@@ -53,7 +54,10 @@ export const setupCamera = (config, state, renderingStage) => {
         camera.pos_.set(vec3.add(position, velocity));
         camera.position.set(camera.pos_)
 
+        const noiseOrigin = vec3.sub(vec3.floor(camera.pos_), vec3.fromValues(config.cellCountX / 2, config.cellCountY / 2, config.cellCountZ / 2));
+        camera.model_mat.set(mat4.translation(noiseOrigin));
         camera.view_mat.set(mat4.invert(camera.camera_mat));
+        noiseStage.localSettingsBuffer.set(noiseOrigin, 4);
     }
 
     camera.update_projection = () => {
@@ -61,6 +65,7 @@ export const setupCamera = (config, state, renderingStage) => {
         camera.proj_mat.set(mat4.perspective(camera.fov / 180 * Math.PI, aspect, camera.nearPlane, camera.farPlane));
     };
     camera.update_projection();
+    
 
     return camera;
 }

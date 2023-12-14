@@ -3,12 +3,6 @@ struct Settings {
     interpolationFactor: f32,
 };
 
-
-struct Vertex {
-    position: vec3<f32>,
-    normal: vec3<f32>
-};
-
 struct IndirectArgs {
     vertIndex: atomic<u32>,
     indexCount: atomic<u32>,
@@ -36,9 +30,10 @@ struct EdgeLUTEntry {
 @group(0) @binding(0) var noise_texture: texture_3d<f32>;
 @group(0) @binding(1) var<uniform> settings: Settings;
 @group(0) @binding(2) var<storage, read_write> indirectArgs : IndirectArgs;
-@group(0) @binding(3) var<storage, read_write> vertices: array<Vertex>;
-@group(0) @binding(4) var<storage, read_write> indices: array<u32>;
-@group(0) @binding(5) var<uniform> LUT: array<ConfigurationEntry, 256>;
+@group(0) @binding(3) var<storage, read_write> positions: array<f32>;
+@group(0) @binding(4) var<storage, read_write> normals: array<f32>;
+@group(0) @binding(5) var<storage, read_write> indices: array<u32>;
+@group(0) @binding(6) var<uniform> LUT: array<ConfigurationEntry, 256>;
 // Add a binding for cube id
 
 // Maps the edge indeces to the new indeces in the vertex buffer
@@ -128,13 +123,18 @@ fn normalAt(pos: vec3<u32>) -> vec3<f32> {
         let f2 = isoValues[edgeLUTEntry.v2];
         let t = mix(0.5, (settings.isoValue - f1) / (f2 - f1), settings.interpolationFactor);
 
-        let vert_pos: vec3f = vec3f(id.xyz) + edgeLUTEntry.staticOffset + edgeLUTEntry.interpolatedOffset * t;
-        
         indexMap[i] = startingVertIndex;
-        vertices[indexMap[i]].position = vert_pos; 
+        let vert_pos: vec3f = vec3f(id.xyz) + edgeLUTEntry.staticOffset + edgeLUTEntry.interpolatedOffset * t;
+        positions[indexMap[i]*3] = vert_pos.x;
+        positions[indexMap[i]*3+1] = vert_pos.y;
+        positions[indexMap[i]*3+2] = vert_pos.z; 
+
         let na = normalAt(id.xyz + vec3u(edgeLUTEntry.staticOffset));
         let nb = normalAt(id.xyz + vec3u(edgeLUTEntry.staticOffset + edgeLUTEntry.interpolatedOffset));
-        vertices[indexMap[i]].normal = mix(na, nb, t);
+        let normal = normalize(mix(na, nb, t));
+        normals[indexMap[i]*3] = normal.x;
+        normals[indexMap[i]*3+1] = normal.y;
+        normals[indexMap[i]*3+2] = normal.z;
 
         startingVertIndex += 1;
 

@@ -34,9 +34,15 @@ export async function setupMarchingCubesStage(device, config, noiseTexture) {
 
     const cellCount = config.cellCountX * config.cellCountY * config.cellCountZ;
 
-    marchingCubesStage.vertexBuffer = device.createBuffer({
+    marchingCubesStage.positionBuffer = device.createBuffer({
         label: "Marching Cubes Vertices",
-        size: cellCount * 12 * 6 * 4, //Each cell can potentially have 12 vertices, each vertex is 6 floats, each float is 4 bytes
+        size: cellCount * 12 * 3 * 4, //Each cell can potentially have 12 vertices, each vertex pos is 3 floats, each float is 4 bytes
+        usage: GPUBufferUsage.STORAGE |  GPUBufferUsage.VERTEX ,
+    });
+
+    marchingCubesStage.normalBuffer = device.createBuffer({
+        label: "Marching Cubes Normals",
+        size: cellCount * 12 * 3 * 4, //Each cell can potentially have 12 vertices, each vertex normal is 3 floats, each float is 4 bytes
         usage: GPUBufferUsage.STORAGE |  GPUBufferUsage.VERTEX ,
     });
 
@@ -97,52 +103,68 @@ export async function setupMarchingCubesStage(device, config, noiseTexture) {
                 binding: 5,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
+                    type: "storage",
+                }
+            },
+            {
+                binding: 6,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer: {
                     type: "uniform",
                 }
             },
         ],
     });
 
-    marchingCubesStage.bindGroup = device.createBindGroup({
-        label: "Marching Cubes Bind Group",
-        layout: marchingCubesStage.bindGroupLayout,
-        entries: [
-            {
-                binding: 0,
-                resource: noiseTexture.createView(),
-            },
-            {
-                binding: 1,
-                resource: {
-                    buffer: marchingCubesStage.settingsBuffer,
+    marchingCubesStage.createBindGroup = (noiseTexture) => {
+        marchingCubesStage.bindGroup = device.createBindGroup({
+            label: "Marching Cubes Bind Group",
+            layout: marchingCubesStage.bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: noiseTexture.createView(),
                 },
-            },
-            {
-                binding: 2,
-                resource: {
-                    buffer: marchingCubesStage.indirectArgsBuffer,
+                {
+                    binding: 1,
+                    resource: {
+                        buffer: marchingCubesStage.settingsBuffer,
+                    },
                 },
-            },
-            {
-                binding: 3,
-                resource: {
-                    buffer: marchingCubesStage.vertexBuffer,
+                {
+                    binding: 2,
+                    resource: {
+                        buffer: marchingCubesStage.indirectArgsBuffer,
+                    },
                 },
-            },
-            {
-                binding: 4,
-                resource: {
-                    buffer: marchingCubesStage.indexBuffer,
+                {
+                    binding: 3,
+                    resource: {
+                        buffer: marchingCubesStage.positionBuffer,
+                    },
                 },
-            },
-            {
-                binding: 5,
-                resource: {
-                    buffer: marchingCubesStage.LUT,
+                {
+                    binding: 4,
+                    resource: {
+                        buffer: marchingCubesStage.normalBuffer,
+                    },
                 },
-            },
-        ],
-    });
+                {
+                    binding: 5,
+                    resource: {
+                        buffer: marchingCubesStage.indexBuffer,
+                    },
+                },
+                {
+                    binding: 6,
+                    resource: {
+                        buffer: marchingCubesStage.LUT,
+                    },
+                },
+            ],
+        });
+    };
+    marchingCubesStage.createBindGroup(noiseTexture);
 
     marchingCubesStage.pipelineLayout = device.createPipelineLayout({
         label: "Marching Cubes Pipeline Layout",

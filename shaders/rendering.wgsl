@@ -8,12 +8,14 @@ struct Vertex {
     @location(1) normal: vec3<f32>
 };
 
-struct VSInput {
+struct RenderSettings {
     modelMatrix: mat4x4f,
     viewMatrix: mat4x4f,
     projectionMatrix: mat4x4f,
     eye_pos: vec3<f32>,
+    material: vec4<f32>, // ambient, diffuse, specular, shininess
 };
+
 
 struct VSOutput {
     @builtin(position) position: vec4f,
@@ -34,30 +36,33 @@ const positions = array<vec3<f32>, 9>(
     vec3<f32>(-1.0,  -1.0, -1.0),
 );
 
-@group(0) @binding(0) var<uniform> vsInput: VSInput;
+@group(0) @binding(0) var<uniform> renderSettings: RenderSettings;
 // @group(0) @binding(1) var<uniform> fsUni: FSInput;
 
 @vertex fn vs(vert: Vertex) -> VSOutput {
-    let worldPos = vsInput.modelMatrix * vec4f(vert.position, 1.0);
+    let worldPos = renderSettings.modelMatrix * vec4f(vert.position, 1.0);
+    //let worldPos = vec4f(vert.position + floor(renderSettings.eye_pos), 1.0);
 
     var vsOut: VSOutput;
     vsOut.fragPos = worldPos.xyz;
-    vsOut.position = vsInput.projectionMatrix * vsInput.viewMatrix * worldPos;
-    vsOut.color = vec3f(0.4, 1.0-(worldPos.y/30.0), 0.8);
-    vsOut.color *= clamp((1- vsOut.position.z / 2500.0) , 0.0, 1.0);
+    vsOut.position = renderSettings.projectionMatrix * renderSettings.viewMatrix * worldPos;
+    vsOut.color = vec3f(sin(worldPos.z/15) / 2 + 0.5 , sin(worldPos.y/30) / 2 + 0.5, sin(worldPos.x/15) / 2 + 0.5);
     vsOut.normal = vert.normal;
 
     return vsOut;
 }
 
 @fragment fn fs(fsInput: VSOutput) -> @location(0) vec4f {
-    var color = fsInput.color;
-
     let normal = normalize(fsInput.normal);
-    let eyeDir = normalize(fsInput.fragPos - vsInput.eye_pos);
+    let eyeDir = normalize(renderSettings.eye_pos - fsInput.fragPos);
 
-    let intensity = clamp(dot(eyeDir, normal), 0.0, 1.0);
-    color *= intensity;    
+    let intensity = clamp(dot(eyeDir, normal) , 0.0, 1.0);
 
-    return vec4f(color, 1.0);
+    let reflectionDir = reflect(-eyeDir, normal);
+    let specular = pow(clamp(dot(reflectionDir, eyeDir), 0.0, 1.0), renderSettings.material.w);
+
+    var outputColor = (renderSettings.material.x + renderSettings.material.y * intensity + renderSettings.material.z * specular) * fsInput.color;
+    outputColor *= clamp((1-distance(fsInput.fragPos, renderSettings.eye_pos) / 50.0), 0.0, 1.0);
+
+    return vec4f(outputColor, 1.0);
 }

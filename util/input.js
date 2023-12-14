@@ -13,7 +13,6 @@ export function setupInput(config, state, canvas) {
         }
     });
     window.addEventListener('keyup', (e) => {
-        console.log(e.key)
         if(Object.keys(state.keyboard).includes(e.key)){
             e.preventDefault();
             state.keyboard[e.key] = false;

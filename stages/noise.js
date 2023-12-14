@@ -29,47 +29,54 @@ export async function setupNoiseStage(device, config) {
         ]
     });
 
-    const noiseTextureDescriptor = {
-        size: [config.cellCountX, config.cellCountY, config.cellCountZ],
-        format: 'r32float',
-        dimension: '3d',
-        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-    }
-    
-    noiseStage.noiseTexture = device.createTexture(noiseTextureDescriptor);    
-
     noiseStage.settingsBuffer = device.createBuffer({
         label: "Noise Settings",
-        size: 4,
+        size: 32,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
     noiseStage.settings = {
-        scale: 0.05
+        scale: 0.05,
+        blockiness: 0.25,
     }
+
+    noiseStage.localSettingsBuffer = new Float32Array([noiseStage.settings.scale,noiseStage.settings.blockiness,0,0,0,0,0,0]);
 
     noiseStage.updateSettingsBuffer = () => {
-        device.queue.writeBuffer(noiseStage.settingsBuffer, 0, new Float32Array([noiseStage.settings.scale]));
+        device.queue.writeBuffer(noiseStage.settingsBuffer, 0, noiseStage.localSettingsBuffer);
     }
+
     noiseStage.updateSettingsBuffer(); // Initial update
 
-    
-    noiseStage.bindGroup = device.createBindGroup({
-        label: "Noise stage bind group",
-        layout: noiseStage.bindGroupLayout,
-        entries: [
-            {
-                binding: 0,
-                resource: noiseStage.noiseTexture.createView(),
-            },
-            {
-                binding: 1,
-                resource:{
-                    buffer: noiseStage.settingsBuffer,
+    noiseStage.createNoiseTexture = () => {
+        noiseStage.noiseTexture?.destroy();
+
+        noiseStage.noiseTexture = device.createTexture({
+            size: [config.cellCountX, config.cellCountY, config.cellCountZ],
+            format: 'r32float',
+            dimension: '3d',
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
+        });
+
+        //Also replace the bind group
+        noiseStage.bindGroup = device.createBindGroup({
+            label: "Noise stage bind group",
+            layout: noiseStage.bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: noiseStage.noiseTexture.createView(),
+                },
+                {
+                    binding: 1,
+                    resource:{
+                        buffer: noiseStage.settingsBuffer,
+                    }
                 }
-            }
-        ]
-    });
+            ]
+        });
+    };
+    noiseStage.createNoiseTexture();
     
     noiseStage.pipelineLayout = device.createPipelineLayout({
         label: "Noise stage pipeline layout",

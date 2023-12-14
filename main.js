@@ -2,7 +2,7 @@ import { setupNoiseStage } from './stages/noise.js';
 import { setupDebugNoiseStage } from './stages/debugNoise.js';
 import { setupMarchingCubesStage } from './stages/marchingcubes.js';
 import { setupRenderingStage } from './stages/rendering.js';
-import { setupUI, matToString } from './util/ui.js';
+import { setupUI } from './util/ui.js';
 import { setupCamera } from './util/camera.js';
 import { setupInput } from './util/input.js';
 import Stats from 'stats.js';
@@ -10,9 +10,9 @@ import Stats from 'stats.js';
 import { mat4, vec4, vec3, quat } from 'wgpu-matrix';
 
 const config = {
-  cellCountX: 20 * 4, // must be a multiple of 4
-  cellCountY: 20 * 4,
-  cellCountZ: 20 * 4,  
+  cellCountX: 24 * 4, // must be a multiple of 4
+  cellCountY: 24 * 4,
+  cellCountZ: 24 * 4,  
 
   outputWidth: 16 * 120,
   outputHeight: 9 * 120,
@@ -21,6 +21,13 @@ const config = {
   animateIsoValue: false,
   speed: 0.015,
   mouseSensitivity: 0.0002,
+
+  timestamp_queries: true,
+
+  ambient_factor: 0.35,
+  diffuse_factor: 0.9,
+  specular_factor: 0.4,
+  shininess: 32.0,
 };
 
 let state = {
@@ -41,25 +48,41 @@ let state = {
   }
 };
 
+import.meta.env.MODE = 'development';
+
 async function init() {
   //Get a WebGPU device 
   const adapter = await navigator.gpu?.requestAdapter();
   
-  const device = await adapter?.requestDevice({
+  let device;
+  await adapter?.requestDevice({
     requiredLimits: {
       maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
       maxBufferSize: 1024 * 1024 * 512, // 512 MB
     },
-    requiredFeatures: (import.meta.env.MODE === 'development') ? ['timestamp-query'] : [],
+    requiredFeatures: ['timestamp-query'],
+  }).catch(e => {
+    config.timestamp_queries = false;
+    return adapter.requestDevice({ // fallback to only buffer limits
+      requiredLimits: {
+        maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
+        maxBufferSize: 1024 * 1024 * 512, // 512 MB
+      },
+    }); 
+  }).catch(e => {
+    return adapter.requestDevice(); // fallback to no limits
+  }).then(d => {
+    device = d;
+  }).catch(e => {
+    console.error(e);
+    return alert('Need a browser that supports WebGPU')
   });
-
-  if (!device) return alert('Need a browser that supports WebGPU');
+  config.maxBufferSize = device.limits.maxStorageBufferBindingSize;
   
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
   
   // Get a WebGPU context from the canvas and configure it
   const canvas =  document.getElementById('webgpu_canvas');
-  const debugElement = document.getElementsByClassName('debug')[0];
   canvas.width = config.outputWidth;
   canvas.height = config.outputHeight;
   const context = canvas.getContext('webgpu');
@@ -80,12 +103,12 @@ async function init() {
 
   //Setup UI / Input
   setupInput(config, state, canvas)
-  const camera = setupCamera(config, state, renderingStage); 
-  setupUI(config, state, noiseStage, marchingCubesStage, renderingStage, camera);
+  const camera = setupCamera(config, state, renderingStage, noiseStage); 
+  setupUI(config, state, noiseStage, marchingCubesStage, renderingStage, camera, debugNoiseStage);
 
   //Setup Debug Timings
   const debugTimings = {};
-  if(import.meta.env.MODE === 'development') {
+  if(config.timestamp_queries) {
     debugTimings.querySet = device.createQuerySet({
       type: 'timestamp',
       count: 4, //Initial, After Noise, After Marching Cubes, After Rendering
@@ -105,7 +128,7 @@ async function init() {
   
   //Performance Monitor Library stats.js
   const stats = new Stats();
-  if(import.meta.env.MODE === 'development') {
+  if(config.timestamp_queries) {
     stats.noisePass = stats.addPanel(new Stats.Panel('µs Noise', '#ff0', '#200'));
     stats.marchingCubesPass = stats.addPanel(new Stats.Panel('µs Marching', '#f0f', '#202'));
     stats.renderPass = stats.addPanel(new Stats.Panel('µs Render', '#0f0', '#020'));
@@ -113,8 +136,19 @@ async function init() {
   document.body.appendChild(stats.dom);
 
   //Setup 
-  const model_mat = mat4.identity();
-  renderingStage.cameraSettings.set(model_mat, 0); // Offset Model by Camera Position))
+
+  function resizeIfNeeded() {
+    const width = Math.max(1, Math.min(device.limits.maxTextureDimension2D, canvas.clientWidth));
+    const height = Math.max(1, Math.min(device.limits.maxTextureDimension2D, canvas.clientHeight));
+
+    if (canvas.width === width && canvas.height === height) return;
+    config.outputWidth = canvas.width = width;
+    config.outputHeight = canvas.height = height;
+
+    console.log(`Resized canvas to ${width}x${height}`);
+    
+    renderingStage.createDepthTexture();
+  }
 
   async function render(time) {   
     const deltaTime = time - state.time;
@@ -122,25 +156,27 @@ async function init() {
 
     stats.begin();
 
+    resizeIfNeeded();
+
     //Update Camera
     camera.update(state.keyboard, state.mouse, deltaTime)
-    renderingStage.updateCameraSettingsBuffer();
-
+    noiseStage.updateSettingsBuffer();
+    renderingStage.updateRenderSettingsBuffer();
 
     const encoder = device.createCommandEncoder({label: 'Command encoder'});
 
-    if(import.meta.env.MODE === 'development') {
+    if(config.timestamp_queries) {
       encoder.writeTimestamp(debugTimings.querySet, 0);
     }
 
     let computePass = encoder.beginComputePass({label: 'Compute Pass'});
-    
+
     /* Noise Stage */
     computePass.setPipeline(noiseStage.pipeline);
     computePass.setBindGroup(0, noiseStage.bindGroup);
     computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
     
-    if(import.meta.env.MODE === 'development') {
+    if(config.timestamp_queries) {
       computePass.end();
       encoder.writeTimestamp(debugTimings.querySet, 1);
       computePass = encoder.beginComputePass({label: 'Compute Pass'});
@@ -157,7 +193,7 @@ async function init() {
 
     computePass.end();
 
-    if(import.meta.env.MODE === 'development') {
+    if(config.timestamp_queries) {
       encoder.writeTimestamp(debugTimings.querySet, 2);
     }
 
@@ -180,14 +216,15 @@ async function init() {
 
       renderPass.setPipeline(renderingStage.pipeline);
       renderPass.setBindGroup(0, renderingStage.bindGroup);
-      renderPass.setVertexBuffer(0, marchingCubesStage.vertexBuffer);
+      renderPass.setVertexBuffer(0, marchingCubesStage.positionBuffer);
+      renderPass.setVertexBuffer(1, marchingCubesStage.normalBuffer);
       renderPass.setIndexBuffer(marchingCubesStage.indexBuffer, "uint32");
       renderPass.drawIndexedIndirect(marchingCubesStage.indirectArgsBuffer, 4);
 
       renderPass.end();
     }
 
-    if(import.meta.env.MODE === 'development') {
+    if(config.timestamp_queries) {
       encoder.writeTimestamp(debugTimings.querySet, 3);
       encoder.resolveQuerySet(debugTimings.querySet, 0, 4, debugTimings.timestampBuffer, 0);
       encoder.copyBufferToBuffer(debugTimings.timestampBuffer, 0, debugTimings.timestampReadBuffer, 0, 4 * 8);
@@ -196,7 +233,7 @@ async function init() {
     const commandBuffer = encoder.finish();
     device.queue.submit([commandBuffer]);
 
-    if(import.meta.env.MODE === 'development') {
+    if(config.timestamp_queries) {
       await debugTimings.timestampReadBuffer.mapAsync(GPUMapMode.READ);
       const timestamps = new BigUint64Array(debugTimings.timestampReadBuffer.getMappedRange()).slice();
       debugTimings.timestampReadBuffer.unmap();
