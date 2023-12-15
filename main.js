@@ -7,8 +7,6 @@ import { setupCamera } from './util/camera.js';
 import { setupInput } from './util/input.js';
 import Stats from 'stats.js';
 
-import { mat4, vec4, vec3, quat } from 'wgpu-matrix';
-
 const config = {
   cellCountX: 24 * 4, // must be a multiple of 4
   cellCountY: 24 * 4,
