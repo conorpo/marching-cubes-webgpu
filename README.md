@@ -8,13 +8,16 @@
 ## Pipelines & Needed Resources
 
 0. Noise Field Creation
+    - Creates a 3D noise texture
 
+    - (Input) Permutation Table Buffer
     - (Input) Noise Settings Buffer
-    - (Output)  texture3d\<float> GridPoint Values
+    - (Output) texture3d\<float> Noise
 
 1. Marching Cubes (Triangle Creation)
+    - Runs the marching cubes algorithm on the noise texture
 
-    - (Input) texture3d\<float> GridPoint Values
+    - (Input) texture3d\<float> Noise
     - (Input) Settings Buffer
     - (Input) Triangulation LUT Buffer
     - (Input / Output) Storage Buffer for Indices
@@ -22,10 +25,18 @@
     - (Input / Output) Storage Buffer for Vertices
 
 2. Rasterization and Rendering
+    - Renders out the triangles with a basic shader
 
     - (Vertex Input) Vertex Buffer (position, normal)
-    - (Input) Render Settings
     - (Index Input) Index Buffer
+    - (Input) Render Settings
+
+12. Debug Noise (optional, replaces 2)
+    - Renders 2D slices of the noise texture to the screen
+    - (Input) texture3d\<float> Noise
+    - (Input) Settings Uniform Buffer
+
+
 
 ## TODO
 ```
@@ -36,7 +47,7 @@
 - add additional sim settings (done)
 - store vertex buffers as seperate, so that they can be packed tightly (done)
 - add debug timing info (done)
-- setup auto build
+- setup auto build (done)
 ```
 
 ## Final Notes
@@ -45,7 +56,7 @@ Ended up a bit more spaghetti'd than I'd like, but happy with the current state 
 ## BindGroups Overview
 |                | BindGroup 0                          | BindGroup 1                                                                 | BindGroup 2  | BindGroup 3 |
 |----------------|--------------------------------------|-----------------------------------------------------------------------------|--------------|-------------|
-| Compute Noise  | Camera Info + Noise Storage Texture  | Noise Settings                                                              |              |             |
-| Marching Cubes | Camera Info + Noise Storage Texture  | Marching Cube Settings + IndirectArgs + Vertex, Normal, Index Buffers, LUTs |              |             |
-| Compute Noise  | Camera Info + Noise Storage Texture  | Noise Settings                                                              |              |             |
-| Rendering      | Camera Info + Noise Storage Texture  |                                                                             |              |             |
+| Compute Noise  | PTable + Triangulation LUTs | Noise Texture + Noise Settings                                               |              |             |
+| Marching Cubes | PTable + Triangulation LUTs | Noise Texture, Marching Cube Settings, IndirectArgs; Vertex, Normal, Index Buffers |              |             |
+| Rendering      | Render Settings  |                                                                             |              |             |
+| Debug Noise    | Noise Texture + Settings  |  Settings                                                              |              |             |
