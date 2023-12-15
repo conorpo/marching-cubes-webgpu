@@ -48,8 +48,6 @@ let state = {
   }
 };
 
-import.meta.env.MODE = 'development';
-
 async function init() {
   //Get a WebGPU device 
   const adapter = await navigator.gpu?.requestAdapter();
@@ -60,10 +58,9 @@ async function init() {
       maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
       maxBufferSize: 1024 * 1024 * 512, // 512 MB
     },
-    requiredFeatures: ['timestamp-query', 'chromium-experimental-read-write-storage-texture'],
+    requiredFeatures: ['timestamp-query'],
   }).catch(e => {
     config.timestamp_queries = false;
-    console.log('Timestamp queries not supported, falling back to no limits');
     return adapter.requestDevice({ // fallback to only buffer limits
       requiredLimits: {
         maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
@@ -204,9 +201,8 @@ let x = 0;
     if(config.toggleDebugNoise === true){
       /* Debug Noise Stage */
       debugNoiseStage.renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView(); // Update render pass view
-      const renderPass = encoder.beginRenderPass(debugNoiseStage.renderPassDescriptor);
 
-      device.queue.writeBuffer(debugNoiseStage.settingsBuffer, 0, new Uint32Array([Math.round(time / 50)%40]))
+      const renderPass = encoder.beginRenderPass(debugNoiseStage.renderPassDescriptor);
       renderPass.setPipeline(debugNoiseStage.pipeline);
       renderPass.setBindGroup(0, debugNoiseStage.bindGroup);
       renderPass.draw(3);
@@ -249,6 +245,7 @@ let x = 0;
 
     //Reset needed buffers for next frame
     device.queue.writeBuffer(marchingCubesStage.indirectArgsBuffer, 0, new Uint32Array([0, 0, 1, 0, 0, 0]));
+    debugNoiseStage.updateSettingsBuffer(Math.round(time / 50));
     state.mouse.movementX = 0;
     state.mouse.movementY = 0;
     

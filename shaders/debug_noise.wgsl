@@ -2,7 +2,10 @@
 @group(0) @binding(1) var<uniform> settings: Settings;
 
 struct Settings {
+    cellCount: vec2f,
+    outputSize: vec2f,
     zIndex: u32,
+    cellCountZ: u32,
 }
 
 const pos = array<vec2f, 3>(
@@ -15,18 +18,11 @@ const pos = array<vec2f, 3>(
 }
 
 @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-    let coords = vec2u(pos.xy) - vec2u(0, 0);
-
-    var red : f32 = 0.0;
-    var green: f32 = 0.0;
-    var blue: f32 = 0.0;
-
-    let depth = textureDimensions(noise_texture).z;
-
+    let textureCoord = vec2u(pos.xy * settings.cellCount / settings.outputSize);
     
-    red += textureLoad(noise_texture, vec3u(coords / 20, settings.zIndex), 0).r;
-    green += textureLoad(noise_texture, vec3u(coords / 20, settings.zIndex + 1), 0).r;
-    blue += textureLoad(noise_texture, vec3u(coords / 20, settings.zIndex + 2), 0).r;
+    let red = textureLoad(noise_texture, vec3u(textureCoord, settings.zIndex % settings.cellCountZ), 0).r;
+    let green = textureLoad(noise_texture, vec3u(textureCoord, (settings.zIndex + 1) % settings.cellCountZ), 0).r;
+    let blue = textureLoad(noise_texture, vec3u(textureCoord, (settings.zIndex + 2) % settings.cellCountZ), 0).r;
     
     return vec4f(red, green, blue, 1);
 }
