@@ -1,6 +1,6 @@
 import renderingShaderCode from '../shaders/rendering.wgsl';
 
-export async function setupRenderingStage(device, config, presentationFormat) {
+export async function setupRenderingStage(device, config, presentationFormat, noiseStage) {
     const renderingStage = {};
 
     renderingStage.module = device.createShaderModule({

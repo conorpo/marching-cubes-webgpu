@@ -60,9 +60,10 @@ async function init() {
       maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
       maxBufferSize: 1024 * 1024 * 512, // 512 MB
     },
-    requiredFeatures: ['timestamp-query'],
+    requiredFeatures: ['timestamp-query', 'chromium-experimental-read-write-storage-texture'],
   }).catch(e => {
     config.timestamp_queries = false;
+    console.log('Timestamp queries not supported, falling back to no limits');
     return adapter.requestDevice({ // fallback to only buffer limits
       requiredLimits: {
         maxStorageBufferBindingSize: 1024 * 1024 * 512, // 512 MB
@@ -72,6 +73,7 @@ async function init() {
   }).catch(e => {
     return adapter.requestDevice(); // fallback to no limits
   }).then(d => {
+    console.log(config.timestamp_queries ? 'Using timestamp queries' : 'Not using timestamp queries')
     device = d;
   }).catch(e => {
     console.error(e);
@@ -98,8 +100,8 @@ async function init() {
   //Setup Stages
   const noiseStage = await setupNoiseStage(device, config);
   const debugNoiseStage = await setupDebugNoiseStage(device, config, noiseStage.noiseTexture, presentationFormat);
-  const marchingCubesStage = await setupMarchingCubesStage(device, config, noiseStage.noiseTexture);
-  const renderingStage = await setupRenderingStage(device, config, presentationFormat);
+  const marchingCubesStage = await setupMarchingCubesStage(device, config, noiseStage);
+  const renderingStage = await setupRenderingStage(device, config, presentationFormat, noiseStage);
 
   //Setup UI / Input
   setupInput(config, state, canvas)
@@ -136,7 +138,7 @@ async function init() {
   document.body.appendChild(stats.dom);
 
   //Setup 
-
+let x = 0;
   function resizeIfNeeded() {
     const width = Math.max(1, Math.min(device.limits.maxTextureDimension2D, canvas.clientWidth));
     const height = Math.max(1, Math.min(device.limits.maxTextureDimension2D, canvas.clientHeight));
@@ -173,22 +175,24 @@ async function init() {
 
     /* Noise Stage */
     computePass.setPipeline(noiseStage.pipeline);
-    computePass.setBindGroup(0, noiseStage.bindGroup);
-    computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
+    computePass.setBindGroup(0, marchingCubesStage.LUTBindGroup);
+    computePass.setBindGroup(1, noiseStage.bindGroup);
+    computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ / 4);
     
     if(config.timestamp_queries) {
       computePass.end();
       encoder.writeTimestamp(debugTimings.querySet, 1);
       computePass = encoder.beginComputePass({label: 'Compute Pass'});
     }
-
+    
     /* Marching Cubes Stage */
     if(config.animateIsoValue === true) {
       marchingCubesStage.settings.isoValue = Math.sin(time / 400) / 40 + 0.5;  
       marchingCubesStage.updateSettingsBuffer();
     }
     computePass.setPipeline(marchingCubesStage.pipeline);
-    computePass.setBindGroup(0, marchingCubesStage.bindGroup);
+    if(config.timestamp_queries) computePass.setBindGroup(0, marchingCubesStage.LUTBindGroup);
+    computePass.setBindGroup(1, marchingCubesStage.bindGroup);
     computePass.dispatchWorkgroups(config.cellCountX / 4, config.cellCountY / 4, config.cellCountZ /4);
 
     computePass.end();

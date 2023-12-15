@@ -1,6 +1,6 @@
 import marchingCubesShaderCode from '../shaders/marchingCubes.wgsl';
 
-export async function setupMarchingCubesStage(device, config, noiseTexture) {
+export async function setupMarchingCubesStage(device, config, noiseStage) {
     const marchingCubesStage = {};
 
     marchingCubesStage.module = device.createShaderModule({
@@ -55,7 +55,7 @@ export async function setupMarchingCubesStage(device, config, noiseTexture) {
     marchingCubesStage.LUT = device.createBuffer({
         label: "Marching Cubes LUT",
         size: 256 * 24 * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
 
     device.queue.writeBuffer(marchingCubesStage.LUT, 0, LUT);
@@ -106,13 +106,6 @@ export async function setupMarchingCubesStage(device, config, noiseTexture) {
                     type: "storage",
                 }
             },
-            {
-                binding: 6,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "uniform",
-                }
-            },
         ],
     });
 
@@ -154,21 +147,36 @@ export async function setupMarchingCubesStage(device, config, noiseTexture) {
                     resource: {
                         buffer: marchingCubesStage.indexBuffer,
                     },
-                },
-                {
-                    binding: 6,
-                    resource: {
-                        buffer: marchingCubesStage.LUT,
-                    },
-                },
+                }
             ],
         });
     };
-    marchingCubesStage.createBindGroup(noiseTexture);
+
+    
+    marchingCubesStage.createBindGroup(noiseStage.noiseTexture);
+    //This will be used by all stages, never switched
+    marchingCubesStage.LUTBindGroup = device.createBindGroup({
+        label: "Marching Cubes LUT Bind Group",
+        layout: noiseStage.LUTBindGroupLayout,
+        entries: [
+            {
+                binding: 0,
+                resource: {
+                    buffer: noiseStage.pTable,
+                },
+            },
+            {
+                binding: 1,
+                resource: {
+                    buffer: marchingCubesStage.LUT,
+                },
+            },
+        ],
+    });
 
     marchingCubesStage.pipelineLayout = device.createPipelineLayout({
         label: "Marching Cubes Pipeline Layout",
-        bindGroupLayouts: [marchingCubesStage.bindGroupLayout],
+        bindGroupLayouts: [noiseStage.LUTBindGroupLayout, marchingCubesStage.bindGroupLayout],
     });
 
     marchingCubesStage.pipeline = await device.createComputePipelineAsync({

@@ -16,7 +16,6 @@ struct RenderSettings {
     material: vec4<f32>, // ambient, diffuse, specular, shininess
 };
 
-
 struct VSOutput {
     @builtin(position) position: vec4f,
     @location(0) color: vec3f,
@@ -37,7 +36,6 @@ const positions = array<vec3<f32>, 9>(
 );
 
 @group(0) @binding(0) var<uniform> renderSettings: RenderSettings;
-// @group(0) @binding(1) var<uniform> fsUni: FSInput;
 
 @vertex fn vs(vert: Vertex) -> VSOutput {
     let worldPos = renderSettings.modelMatrix * vec4f(vert.position, 1.0);

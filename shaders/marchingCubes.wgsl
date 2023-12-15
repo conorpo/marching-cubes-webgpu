@@ -26,14 +26,14 @@ struct EdgeLUTEntry {
     staticOffset: vec3f,
     interpolatedOffset: vec3f
 }
+@group(0) @binding(1) var<storage, read> LUT: array<ConfigurationEntry, 256>;
 
-@group(0) @binding(0) var noise_texture: texture_3d<f32>;
-@group(0) @binding(1) var<uniform> settings: Settings;
-@group(0) @binding(2) var<storage, read_write> indirectArgs : IndirectArgs;
-@group(0) @binding(3) var<storage, read_write> positions: array<f32>;
-@group(0) @binding(4) var<storage, read_write> normals: array<f32>;
-@group(0) @binding(5) var<storage, read_write> indices: array<u32>;
-@group(0) @binding(6) var<uniform> LUT: array<ConfigurationEntry, 256>;
+@group(1) @binding(0) var noise_texture: texture_3d<f32>;
+@group(1) @binding(1) var<uniform> settings: Settings;
+@group(1) @binding(2) var<storage, read_write> indirectArgs : IndirectArgs;
+@group(1) @binding(3) var<storage, read_write> positions: array<f32>;
+@group(1) @binding(4) var<storage, read_write> normals: array<f32>;
+@group(1) @binding(5) var<storage, read_write> indices: array<u32>;
 // Add a binding for cube id
 
 // Maps the edge indeces to the new indeces in the vertex buffer
