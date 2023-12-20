@@ -72,13 +72,16 @@ fn perlinNoise3D(coord: vec3f) -> f32 {
     );
 }
 
+// Constant to prevent noise repetition // HACK
+const f: f32 = 9999.0;
+
 @compute @workgroup_size(4,4,4) fn main(
     @builtin(global_invocation_id) id: vec3<u32>
 ) {
-    var pos = vec3f(id) + settings.eye_pos + vec3f(128.0,128.0,128.0);
+    var pos = vec3f(id) + settings.eye_pos + vec3f(f,f,f);
 
     //Just rounding position for a blocky look
-    let blockiness = (perlinNoise3D(pos / 20.0) * 0.5 + 0.5) * settings.blockiness;
+    let blockiness = (perlinNoise3D(pos * settings.scale / 10.0) * 0.5 + 0.5) * settings.blockiness;
     let grid_locked = round(pos / 8.0) * 8.0;
     pos = mix(pos, grid_locked, blockiness);
     
