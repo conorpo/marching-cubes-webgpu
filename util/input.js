@@ -31,9 +31,10 @@ export function setupInput(config, state, canvas) {
 
     canvas.addEventListener('mousemove', (e) => {
         if(document.pointerLockElement !== canvas) return;
-
         state.mouse.movementX = e.movementX;
         state.mouse.movementY = e.movementY;
+
+        if (import.meta.env.DEV) console.log(state.mouse);
     });
 
     canvas.addEventListener('pointerlockchange', (e) => {

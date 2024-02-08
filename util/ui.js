@@ -9,7 +9,7 @@ export function setupUI(config, state, noiseStage, marchingCubesStage, rendering
     const marchingCubesFolder = gui.addFolder('Marching Cubes Settings');
     const renderingFolder = gui.addFolder('Render Settings');
 
-    generalFolder.add(config, 'toggleDebugNoise');
+    generalFolder.add(config, 'toggleDebugNoise').name('Debug Noise')
 
     //Noise Settings
     noiseFolder.add(noiseStage.settings, 'scale', 0.01, 0.15).onChange(()=>{
